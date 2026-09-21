@@ -19,6 +19,9 @@
     "android": {
       "package": "com.yourcompany.bearly"
     },
-    "plugins": []
+    "plugins": [
+      "expo-status-bar",
+      "expo-font"
+    ]
   }
 }
