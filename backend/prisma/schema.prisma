@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(uuid())
+  email             String   @unique
+  passwordHash      String
+  handle            String   @unique
+  name              String?
+  createdAt         DateTime @default(now())
+
+  companion         Companion?
+  journalEntries    JournalEntry[]
+  sentCards         Card[]           @relation("SentCards")
+  receivedCards     Card[]           @relation("ReceivedCards")
+  checkIns          CheckIn[]
+  circleMemberships CircleMember[]
+  emergencyContacts EmergencyContact[]
+  sessionRequests   SessionRequest[]
+}
+
+model Companion {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  name      String   @default("Barnaby")
+  species   String   @default("bear") // bear | cat | fox | bunny
+  stage     Int      @default(0)      // 0-3, grows with sustained care
+  points    Int      @default(0)
+  streak    Int      @default(0)
+  lastTaskAt DateTime?
+  updatedAt DateTime @updatedAt
+}
+
+model WellnessTaskLog {
+  id        String   @id @default(uuid())
+  userId    String
+  taskType  String   // walk | water | journal | breathe
+  points    Int
+  createdAt DateTime @default(now())
+}
+
+model JournalEntry {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  body      String
+  mood      String?
+  createdAt DateTime @default(now())
+}
+
+model Card {
+  id           String   @id @default(uuid())
+  senderId     String
+  sender       User     @relation("SentCards", fields: [senderId], references: [id])
+  recipientId  String
+  recipient    User     @relation("ReceivedCards", fields: [recipientId], references: [id])
+  message      String
+  createdAt    DateTime @default(now())
+}
+
+// A "circle" is a small group of family/friends who check in with each other.
+model Circle {
+  id        String         @id @default(uuid())
+  name      String
+  createdAt DateTime       @default(now())
+  members   CircleMember[]
+  checkIns  CheckIn[]
+}
+
+model CircleMember {
+  id       String @id @default(uuid())
+  circleId String
+  circle   Circle @relation(fields: [circleId], references: [id])
+  userId   String
+  user     User   @relation(fields: [userId], references: [id])
+
+  @@unique([circleId, userId])
+}
+
+model CheckIn {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  circleId  String?
+  circle    Circle?  @relation(fields: [circleId], references: [id])
+  mood      String   // great | okay | meh | low | struggling
+  note      String?
+  createdAt DateTime @default(now())
+}
+
+model EmergencyContact {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  name      String
+  phone     String
+  relation  String?
+}
+
+// Verified, credentialed providers only. `verifiedAt` gates whether they appear
+// in the app-facing directory — see routes/therapists.js.
+model Therapist {
+  id              String   @id @default(uuid())
+  name            String
+  credentials     String   // e.g. "LCSW", "MD, Psychiatry"
+  licenseNumber   String
+  licenseState    String
+  specialty       String
+  bio             String?
+  verifiedAt      DateTime?
+  sessionRequests SessionRequest[]
+}
+
+model SessionRequest {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  therapistId String
+  therapist   Therapist @relation(fields: [therapistId], references: [id])
+  status      String   @default("pending") // pending | accepted | declined | completed
+  createdAt   DateTime @default(now())
+}
